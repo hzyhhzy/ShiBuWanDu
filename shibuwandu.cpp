@@ -12,56 +12,88 @@
 #include "Board.h"
 #include <fstream>
 #include <thread>
+
 using namespace std;
 
-int Board::BestValue = 0;
-int Board::BestMove[MOVE];
-int Board::MoveBuf[MOVE];
-
-bool find_answer(int start, int end, bool is_write_to_file = false)
+void InitMask(Board &board, string maskstr, string bootstr)
 {
-  Board board;
+  for (int i = 0; i < maskstr.length(); i++)
+  {
+    board.mask[i] = maskstr[i] == '0' ? true : false;
+  }
+
+  for (int i = 0; i < bootstr.length(); i++)
+  {
+    board.board[i] = bootstr[i] == '0' ? 0 : bootstr[i] == '1' ? 1
+                                         : bootstr[i] == '2'   ? 2
+                                         : bootstr[i] == '3'   ? 3
+                                                               : 0;
+  }
+}
+bool find_answer(string maskstr, string bootstr, int start, int end, const int index, bool is_write_to_file = false)
+{
+  Board board = Board();
+  InitMask(board, maskstr, bootstr);
   string filename = to_string(H) + "x" + to_string(W) + "_" + to_string(MOVE) + "_" + to_string(start) + "-" + to_string(end - 1) + ".txt";
   if (end == 0)
     end = H * W;
-  Board::search(board, start, end, 0, MOVE);
+  board.search(index, board, start, end, 0, MOVE);
 
   cout << endl
        << "Finished!" << endl;
   cout
-      << "最大步数:" << Board::BestValue << " (" << Board::BestValue * 90 << " 度)" << endl
+      << "最大步数:" << board.BestValue << " (" << board.BestValue * 90 << " 度)" << endl
       << " 路径（xy表示第x行第y列）:";
   for (int i = 0; i < MOVE; i++)
-    cout << 1 + Board::BestMove[i] / W << 1 + Board::BestMove[i] % W << " ";
+    cout << 1 + board.BestMove[i] / W << 1 + board.BestMove[i] % W << " ";
   cout << endl;
   if (is_write_to_file)
   {
     ofstream logfile(filename);
-    logfile << "BestValue:" << Board::BestValue << endl
+    logfile << "BestValue:" << board.BestValue << endl
             << " PV:";
     for (int i = 0; i < MOVE; i++)
     {
-      logfile << 1 + Board::BestMove[i] / W << 1 + Board::BestMove[i] % W << " ";
+      logfile << 1 + board.BestMove[i] / W << 1 + board.BestMove[i] % W << " ";
       if (i + 1 == MOVE)
       {
         logfile << endl;
       }
     }
   }
+  return true;
 }
 //启动4个find_answer线程，传入参数分别为(0,1,true);(1,2,true);(2,4,true);(4,30,true)
 int main()
 {
+  //init mask
+  string bootstr = ""
+                   "00000"
+                   "00000"
+                   "00000"
+                   "00000"
+                   "00000"
+                   "00000";
+
+  string maskstr = ""
+                   "00000"
+                   "000x0"
+                   "00000"
+                   "0x000"
+                   "000x0"
+                   "00000";
   //第一步，先创建4个线程对象
-  thread t1(find_answer, 0, 1, true);
-  thread t2(find_answer, 1, 2, true);
-  thread t3(find_answer, 2, 4, true);
-  thread t4(find_answer, 4, 30, true);
+  thread t1(find_answer, maskstr, bootstr, 0, 1, 0, true);
+  // thread t2(find_answer, maskstr, bootstr, 1, 2, 1, true);
+  // thread t3(find_answer, maskstr, bootstr, 2, 4, 2, true);
+  // thread t4(find_answer, maskstr, bootstr, 4, 30, 3, true);
 
   //第二步，等待线程结束
   t1.join();
-  t2.join();
-  t3.join();
-  t4.join();
+  // t2.join();
+  // t3.join();
+  // t4.join();
   return 0;
 }
+
+//十步万度游戏

@@ -1,29 +1,60 @@
 #include <cstring>
 #include <cstdint>
 #include <iostream>
+#include <tuple>
 #define MOVE 15
 #define H 6
 #define W 5
+
+template <typename Container>
+auto its_and_idx(Container &&container)
+{
+    using std::begin, std::end;
+    return std::tuple{begin(container), end(container), 0};
+}
 class Board
 {
 public:
-    static int BestMove[MOVE]; //记录最佳走法
-    static int MoveBuf[MOVE];  //记录正在搜的分支
-    static int BestValue;      //记录最佳分值
+    bool mask[H * W];   //不规则形状，false的位置代表那个地方没有表盘
+    int BestMove[MOVE]; //记录最佳走法
+    int MoveBuf[MOVE];  //记录正在搜的分支
+    int BestValue;      //记录最佳分值
 
     uint8_t board[H * W]; //上右下左分别是0123
-    Board() { clear(); }
-    Board(const Board &other) { memcpy(board, other.board, H * W); }
-    void copy(const Board &other) { memcpy(board, other.board, H * W); }
+
+    Board() : BestValue(0)
+    {
+        clear();
+    }
+    Board(const Board &other)
+    {
+        memcpy(board, other.board, sizeof(board));
+        memcpy(MoveBuf, other.MoveBuf, sizeof(MoveBuf));
+        memcpy(BestMove, other.BestMove, sizeof(BestMove));
+        memcpy(mask, other.mask, sizeof(mask));
+        BestValue = other.BestValue;
+    }
+
+    void copy(const Board &other)
+    {
+        memcpy(board, other.board, sizeof(board));
+        memcpy(MoveBuf, other.MoveBuf, sizeof(MoveBuf));
+        memcpy(BestMove, other.BestMove, sizeof(BestMove));
+        memcpy(mask, other.mask, sizeof(mask));
+        BestValue = other.BestValue;
+    }
+    //将所有变量的数值都重置为0
     void clear()
     {
-        for (int i = 0; i < H * W; i++)
-            board[i] = 0;
+        memset(BestMove, 0, sizeof(BestMove));
+        memset(MoveBuf, 0, sizeof(MoveBuf));
+        memset(board, 0, sizeof(board));
+        memset(mask, true, sizeof(mask));
     }
     int play(int x, int y); //return走了多少步
 
     //达到最后一步，检查是否发现更好的解
-    static void searchLeaf(const Board &baseboard, int minloc, int basescore);
+    void searchLeaf(const int index, const Board &baseboard, int minloc, int basescore);
 
     //递归搜索
     //baseboard 从哪个盘面开始搜
@@ -33,5 +64,5 @@ public:
     //       让minloc=前一步的位置，这样搜索下一步时直接跳过minloc前面的部分
     //maxloc 没什么用途，只是用来把完整任务分成多个子任务，便于开好几个窗口并行计算。[minloc, maxloc)左闭右开，也就是不包括maxloc
     //       除了根节点 maxloc都是H*W
-    static void search(const Board &baseboard, int minloc, int maxloc /*not include*/, int basescore, int depth);
+    void search(const int index, const Board &baseboard, int minloc, int maxloc /*not include*/, int basescore, int depth);
 };
