@@ -1,14 +1,13 @@
-﻿
-
-#include <cstdint>
+﻿#include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <string>
-const int H = 5, W = 5, MOVE = 10;//高，宽，步数
+const int H = 6, W = 5, MOVE = 15;//高，宽，步数
 using namespace std;
 class Board
 {
 public:
+  static bool mask[H * W];//不规则形状，false的位置代表那个地方没有表盘
   static int BestMove[MOVE];//记录最佳走法
   static int MoveBuf[MOVE];//记录正在搜的分支
   static int BestValue;//记录最佳分值
@@ -27,7 +26,6 @@ public:
     int movenum = 0;
     while (1)
     {
-      //TODO 这地方可以加上不规则形状的判断
       movenum++;
       int16_t loc = y * W + x;
       uint8_t c = (board[loc] + 1) & 3;// x+1 mod 4
@@ -49,6 +47,8 @@ public:
         if (x == 0)break;
         x--;
       }
+      //检查一下是不是到了不存在表盘的位置
+      if (!mask[x + y * W])break;
 
     }
     return movenum;
@@ -63,6 +63,7 @@ public:
     for (int x = 0; x < W; x++)
       {
       if (y == miny && x < minx)continue;//ensure x+y*W<=minloc
+      if (!mask[x + y * W])continue;//无表盘的位置
         b.copy(baseboard);
         int score =basescore+ b.play(x, y);
         if (score > BestValue) {
@@ -101,6 +102,7 @@ public:
     Board b;
     for (int loc = minloc; loc < maxloc; loc++)
     {
+      if (!mask[loc])continue;//无表盘的位置
       b.copy(baseboard);
       int score = basescore + b.play(loc % W, loc / W);
       MoveBuf[MOVE - depth] = loc;
@@ -113,6 +115,7 @@ public:
 int Board::BestValue = 0;
 int Board::BestMove[MOVE];
 int Board::MoveBuf[MOVE];
+bool Board::mask[H * W];
 
 int main()
 {
@@ -120,8 +123,8 @@ int main()
   int start, end;
   cout << "HZY 2021.11.12" << endl;
   cout << "长宽和步数都在代码里直接设置，设置好之后编译" << endl;
-  cout << "如果进行完整搜索，以下两步直接输入0。如果任务量很大需要开多个窗口并行，才需要考虑下面两步。具体说明在代码注释中" << endl;
-  cout << "第一步从第几个点开始搜:";
+  cout << "如果进行完整搜索，以下两步直接输入0。如果任务量很大需要开多个窗口并行，才需要考虑下面两步。具体说明在代码注释中" << endl << endl;
+  cout << "第一步从第几个点开始搜（输入后按回车）:";
   cin >> start;
   cout << "搜到第几个点（不包含，左闭右开）（0表示全搜）:";
   cin >> end;
@@ -137,6 +140,72 @@ int main()
   //例如，高6宽5 15步，总路径数为C(15,44)=229911617056=230G，一个线程大概4个小时可以穷举完。
 
   if (end == 0)end = H * W;
+
+
+  //初始盘面，0上，1右，2下，3左
+  const string boardstr = ""
+    "00000"
+    "00000"
+    "00000"
+    "00000"
+    "00000"
+    "00000";
+
+  //是否有表盘，0有，+没有
+  const string maskstr = ""
+    "x0000"
+    "00000"
+    "00000"
+    "00000"
+    "00000"
+    "0000x";
+
+  cout << "是否指定了初始盘面或者表盘空缺处(yes/no)";
+  bool hasInitialBoard = false;
+  while (1)
+  {
+    string initialBoard_str;
+    cin >> initialBoard_str;
+    if (initialBoard_str == "yes")
+    {
+      hasInitialBoard = true;
+      break;
+    }
+    else if (initialBoard_str == "no")
+    {
+      hasInitialBoard = false;
+      break;
+    }
+    else cout << "请输入yes或者no: ";
+  }
+
+  if (hasInitialBoard)
+  {
+    if (boardstr.length() != H * W||maskstr.length() != H * W)
+    {
+      cout << boardstr.length() << "给定的初始盘面或者表盘空缺处和设置的棋盘大小不同";
+      return 0;
+    }
+    for (int i = 0; i < H * W; i++)
+    {
+      board.board[i] = boardstr[i] - '0';
+      Board::mask[i] = (maskstr[i] == '0');
+    }
+  }
+  else
+  {
+    for (int i = 0; i < H * W; i++)
+    {
+      board.board[i] = 0;
+      Board::mask[i] = true;
+    }
+  }
+
+
+
+
+
+
   Board::search(board, start,end, 0, MOVE);
 
 
@@ -146,6 +215,7 @@ int main()
   cout << endl;
 
   string filename = to_string(H) + "x" + to_string(W) + "_" + to_string(MOVE) + "_" + to_string(start) + "-" + to_string(end - 1) + ".txt";
+  if (hasInitialBoard)filename = boardstr + "__" + maskstr + "__" + filename;
   ofstream logfile(filename);
   logfile<< "BestValue:" << Board::BestValue<< endl << " PV:";
   for (int i = 0; i < MOVE; i++)logfile  << 1 + Board::BestMove[i] / W << 1 + Board::BestMove[i] % W << " ";
